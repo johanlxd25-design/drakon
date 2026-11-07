@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DRAKØN - Viste tu actitud.</title>
+    <!-- App instalable (PWA) -->
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0a0a0a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="DRAKØN">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
     <style>
         :root {
             --bg-main: #0a0a0a;
@@ -498,6 +507,87 @@
             font-size: 0.75rem;
             letter-spacing: 0.5px;
         }
+
+        /* --- AVISO DE INSTALACIÓN DE LA APP --- */
+        .install-banner {
+            position: fixed;
+            left: 50%;
+            transform: translate(-50%, 140%);
+            bottom: 14px;
+            width: calc(100% - 24px);
+            max-width: 460px;
+            background-color: #161616;
+            border: 1px solid var(--gold);
+            border-radius: 14px;
+            box-shadow: 0 14px 34px rgba(0,0,0,0.65);
+            padding: 0.85rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            z-index: 999;
+            transition: transform 0.45s cubic-bezier(.2,.9,.25,1.1);
+        }
+
+        .install-banner.visible {
+            transform: translate(-50%, 0);
+        }
+
+        .install-banner img {
+            width: 46px;
+            height: 46px;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .install-text { flex-grow: 1; min-width: 0; }
+
+        .install-title {
+            font-weight: 800;
+            font-size: 0.92rem;
+            margin: 0 0 0.15rem 0;
+            color: #ffffff;
+        }
+
+        .install-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin: 0;
+            line-height: 1.3;
+        }
+
+        .btn-instalar {
+            background-color: var(--gold);
+            color: #000000;
+            border: none;
+            font-weight: 900;
+            font-size: 0.82rem;
+            letter-spacing: 0.4px;
+            padding: 0.6rem 0.95rem;
+            border-radius: 9px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background-color 0.2s;
+        }
+
+        .btn-instalar:hover { background-color: var(--gold-hover); }
+
+        .btn-cerrar-aviso {
+            position: absolute;
+            top: -9px;
+            right: -6px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background-color: #262626;
+            color: #ffffff;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
     </style>
 </head>
 <body>
@@ -571,6 +661,17 @@
         </div>
         <div class="footer-copy">© 2026 DRAKØN. Todos los derechos reservados.</div>
     </footer>
+
+    <!-- AVISO: INSTALAR LA APP -->
+    <div class="install-banner" id="aviso-instalar" role="dialog" aria-label="Instalar la app de DRAKØN">
+        <button class="btn-cerrar-aviso" onclick="cerrarAvisoInstalar()" aria-label="Cerrar aviso">✕</button>
+        <img src="icons/icon-192.png" alt="Icono de DRAKØN">
+        <div class="install-text">
+            <p class="install-title">📲 Instala la app de DRAKØN</p>
+            <p class="install-sub" id="aviso-instalar-texto">Ten la tienda en tu pantalla de inicio: abre al instante, sin buscar el link.</p>
+        </div>
+        <button class="btn-instalar" onclick="instalarApp()">INSTALAR</button>
+    </div>
 
     <script>
         const NUMERO_TELEFONO = "559294388955"; 
@@ -711,6 +812,72 @@
             const urlWhatsApp = `https://wa.me/${NUMERO_TELEFONO}?text=${encodeURIComponent(mensaje)}`;
             window.open(urlWhatsApp, '_blank');
         }
+    </script>
+
+    <script>
+        /* --- APP INSTALABLE: aviso al abrir la página + registro del service worker --- */
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(() => {});
+            });
+        }
+
+        let promptInstalar = null;
+        const CLAVE_AVISO = 'drakonAvisoInstalacionCerrado';
+        const yaInstalada = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+        const esIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            promptInstalar = e;
+            mostrarAvisoInstalar();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            promptInstalar = null;
+            ocultarAvisoInstalar();
+        });
+
+        function avisoCerradoReciente() {
+            const t = parseInt(localStorage.getItem(CLAVE_AVISO) || '0', 10);
+            return Date.now() - t < 7 * 24 * 60 * 60 * 1000; // si lo cierra, no molesta por 7 días
+        }
+
+        function mostrarAvisoInstalar() {
+            if (yaInstalada || avisoCerradoReciente()) return;
+            if (esIOS) {
+                document.getElementById('aviso-instalar-texto').textContent =
+                    'En tu iPhone: toca Compartir y luego «Agregar a pantalla de inicio».';
+            }
+            document.getElementById('aviso-instalar').classList.add('visible');
+        }
+
+        function ocultarAvisoInstalar() {
+            document.getElementById('aviso-instalar').classList.remove('visible');
+        }
+
+        function cerrarAvisoInstalar() {
+            localStorage.setItem(CLAVE_AVISO, String(Date.now()));
+            ocultarAvisoInstalar();
+        }
+
+        async function instalarApp() {
+            if (promptInstalar) {
+                promptInstalar.prompt();
+                const eleccion = await promptInstalar.userChoice;
+                promptInstalar = null;
+                if (eleccion.outcome === 'accepted') ocultarAvisoInstalar();
+            } else if (esIOS) {
+                alert('Para instalar DRAKØN en tu iPhone:\n\n1. Toca el botón Compartir (el cuadrado con la flecha hacia arriba).\n2. Elige «Agregar a pantalla de inicio».\n3. Toca «Agregar».\n\nLa tienda quedará como una app más en tu pantalla.');
+            } else {
+                alert('Para instalar DRAKØN:\n\nAbre el menú de tu navegador (⋮) y toca «Instalar app» o «Agregar a pantalla de inicio».\n\nLa tienda quedará como una app más en tu pantalla.');
+            }
+        }
+
+        // En iOS y en navegadores sin beforeinstallprompt, el aviso sale solo a los 2 segundos.
+        window.addEventListener('load', () => {
+            setTimeout(() => { if (!yaInstalada) mostrarAvisoInstalar(); }, 2000);
+        });
     </script>
 </body>
 </html>
