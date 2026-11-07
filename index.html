@@ -674,10 +674,10 @@
     </div>
 
     <script>
-        const NUMERO_TELEFONO = "559294388955"; 
-        
-        // Base de datos de productos con iconos conservados
-        const productosData = [
+        let NUMERO_TELEFONO = "559294388955";
+
+        // Respaldo: se usa solo si el catálogo en línea no carga (sin conexión la primera vez).
+        let productosData = [
             { id: "1", categoria: "Deportivo", marca: "Nike", nombre: "Air Max Deluxe", precio: "140.00", icono: "👟", tag: "NUEVO", tallas: ["US 38", "US 39", "US 40", "US 41", "US 42"] },
             { id: "2", categoria: "Deportivo", marca: "Adidas", nombre: "Ultraboost 22 Professional", precio: "180.00", icono: "🏃‍♂️", tag: "TOP SALES", tallas: ["US 38", "US 39", "US 40", "US 41", "US 42"] },
             { id: "3", categoria: "Casual", marca: "Clarks", nombre: "Mocasín Elegante Cuero", precio: "110.00", icono: "👞", tag: null, tallas: ["US 39", "US 40", "US 41", "US 42"] },
@@ -688,7 +688,20 @@
         let categoriaActual = 'todos';
         let favoritos = JSON.parse(localStorage.getItem('misFavoritosDrakon')) || [];
 
-        document.addEventListener('DOMContentLoaded', () => {
+        // El catálogo vive en catalogo.json: la app editora lo actualiza y la página lo lee fresco.
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const resp = await fetch('catalogo.json?ts=' + Date.now(), { cache: 'no-store' });
+                if (resp.ok) {
+                    const datos = await resp.json();
+                    if (Array.isArray(datos.productos) && datos.productos.length) {
+                        productosData = datos.productos;
+                    }
+                    if (datos.whatsapp) NUMERO_TELEFONO = String(datos.whatsapp);
+                    const enlaceWs = document.querySelector('.red-ws');
+                    if (enlaceWs) enlaceWs.href = 'https://wa.me/' + NUMERO_TELEFONO;
+                }
+            } catch (e) { /* sin conexión: se queda el respaldo */ }
             renderizarProductos(productosData);
             actualizarContadorFav();
         });
