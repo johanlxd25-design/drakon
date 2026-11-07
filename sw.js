@@ -1,5 +1,5 @@
 /* DRAKØN - Service Worker: permite instalar la app y verla sin conexión */
-const CACHE = "drakon-v1";
+const CACHE = "drakon-v2";
 const BASE = ["./", "./index.html", "./manifest.webmanifest",
               "./icons/icon-192.png", "./icons/icon-512.png"];
 
